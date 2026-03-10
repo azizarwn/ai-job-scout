@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Scout — AI Career Agent</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0d0d0f;
+            --surface: #131316;
+            --surface2: #1a1a1f;
+            --border: #2a2a32;
+            --amber: #f5a623;
+            --amber-dim: #b37a1a;
+            --amber-glow: rgba(245, 166, 35, 0.10);
+            --amber-glow2: rgba(245, 166, 35, 0.16);
+            --green: #4caf7d;
+            --red: #e05c5c;
+            --text: #e8e8ec;
+            --muted: #6b6b7a;
+            --muted2: #4a4a56;
+            --white: #ffffff;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(245, 166, 35, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245, 166, 35, 0.025) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Topbar ── */
+        .topbar {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 58px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .brand-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--white);
+        }
+
+        .brand-title span {
+            color: var(--amber);
+        }
+
+        .brand-tag {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .session-badge {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .session-badge span {
+            color: var(--amber);
+        }
+
+        .agent-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 7px var(--green);
+            animation: pulse 2.5s ease infinite;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .status-dot.thinking {
+            background: var(--amber);
+            box-shadow: 0 0 7px var(--amber);
+            animation: pulse-fast 0.7s ease infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.35
+            }
+        }
+
+        @keyframes pulse-fast {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.2
+            }
+        }
+
+        .new-session-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+        }
+
+        .new-session-btn:hover {
+            border-color: var(--amber-dim);
+            color: var(--amber);
+        }
+
+        /* ── Layout ── */
+        .layout {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 230px;
+            flex-shrink: 0;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border);
+        }
+
+        .sidebar-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--muted2);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 0 18px 10px;
+        }
+
+        .prompt-btn {
+            display: block;
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-left: 2px solid transparent;
+            color: var(--muted);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            text-align: left;
+            padding: 8px 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            line-height: 1.45;
+        }
+
+        .prompt-btn:hover {
+            background: var(--amber-glow);
+            border-left-color: var(--amber);
+            color: var(--amber);
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 18px;
+        }
+
+        .tool-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 18px;
+            transition: all 0.2s;
+        }
+
+        .tool-row.active .tool-indicator {
+            background: var(--amber);
+            box-shadow: 0 0 7px var(--amber);
+        }
+
+        .tool-row.active .tool-label {
+            color: var(--amber);
+        }
+
+        .tool-indicator {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--muted2);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .tool-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            transition: color 0.3s;
+        }
+
+        /* ── Chat ── */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 36px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        /* Welcome */
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 12px;
+            padding: 60px 40px;
+            animation: fadeUp 0.5s ease both;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 40px;
+            font-weight: 900;
+            color: var(--white);
+            line-height: 1;
+        }
+
+        .welcome-title span {
+            color: var(--amber);
+        }
+
+        .welcome-sub {
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            color: var(--muted);
+            max-width: 360px;
+            line-height: 1.9;
+        }
+
+        .welcome-sub .arrow {
+            color: var(--amber);
+        }
+
+        /* Messages */
+        .msg {
+            display: flex;
+            gap: 12px;
+            max-width: 780px;
+            animation: fadeUp 0.25s ease both;
+        }
+
+        .msg.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg.assistant {
+            align-self: flex-start;
+        }
+
+        .msg.tool-msg {
+            align-self: flex-start;
+        }
+
+        .av {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+        }
+
+        .av.user-av {
+            background: var(--amber-glow2);
+            border: 1px solid var(--amber-dim);
+            color: var(--amber);
+        }
+
+        .av.agent-av {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .bubble {
+            padding: 13px 17px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.75;
+            font-weight: 300;
+            max-width: 620px;
+        }
+
+        .msg.user .bubble {
+            background: var(--amber-glow2);
+            border: 1px solid var(--amber-dim);
+            color: var(--white);
+            border-top-right-radius: 2px;
+        }
+
+        .msg.assistant .bubble {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-top-left-radius: 2px;
+        }
+
+        .bubble strong {
+            color: var(--amber);
+            font-weight: 500;
+        }
+
+        .bubble .resp-h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            color: var(--white);
+            font-weight: 700;
+            margin: 14px 0 6px;
+        }
+
+        .bubble .resp-h3 {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--amber);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin: 10px 0 5px;
+        }
+
+        .bubble a {
+            color: var(--amber);
+            text-decoration: none;
+        }
+
+        .bubble a:hover {
+            text-decoration: underline;
+        }
+
+        /* Tool pill */
+        .tool-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border-radius: 100px;
+            padding: 5px 13px;
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            background: var(--amber-glow);
+            border: 1px solid var(--amber-dim);
+            color: var(--amber);
+            animation: fadeUp 0.2s ease both;
+        }
+
+        .pill-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--amber);
+            animation: pulse-fast 0.6s ease infinite;
+            flex-shrink: 0;
+        }
+
+        .tool-pill.done {
+            background: rgba(76, 175, 125, 0.07);
+            border-color: rgba(76, 175, 125, 0.35);
+            color: var(--green);
+        }
+
+        .tool-pill.done .pill-dot {
+            background: var(--green);
+            box-shadow: 0 0 5px var(--green);
+            animation: none;
+        }
+
+        /* Cursor */
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 14px;
+            background: var(--amber);
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0
+            }
+        }
+
+        /* ── Input ── */
+        .input-wrap {
+            flex-shrink: 0;
+            padding: 14px 48px 26px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            position: relative;
+            z-index: 2;
+        }
+
+        .input-box {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--amber-dim);
+            box-shadow: 0 0 0 3px var(--amber-glow);
+        }
+
+        textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            resize: none;
+            line-height: 1.6;
+            min-height: 22px;
+            max-height: 120px;
+        }
+
+        textarea::placeholder {
+            color: var(--muted);
+        }
+
+        .send-btn {
+            background: var(--amber);
+            border: none;
+            border-radius: 7px;
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            cursor: pointer;
+            color: #0d0d0f;
+            font-size: 17px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #f9b84a;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 16px rgba(245, 166, 35, 0.35);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .input-hint {
+            margin-top: 8px;
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--muted2);
+            padding: 0 2px;
+            letter-spacing: 0.05em;
+        }
+
+        .input-hint span {
+            color: var(--amber-dim);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-title">Job <span>Scout</span></div>
+            <div class="brand-tag">AI Career Agent</div>
+        </div>
+        <div class="topbar-right">
+            <div class="session-badge">session: <span id="session-display">—</span></div>
+            <div class="agent-pill">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Ready</span>
+            </div>
+            <button class="new-session-btn" onclick="newSession()">↺ New Session</button>
+        </div>
+    </div>
+
+    <div class="layout">
+
+        <div class="sidebar">
+            <div class="sidebar-label">Quick Prompts</div>
+            <button class="prompt-btn" onclick="usePrompt('Find senior frontend developer jobs in Singapore')">→
+                Frontend Dev / Singapore</button>
+            <button class="prompt-btn" onclick="usePrompt('Find React developer jobs in Dubai UAE')">→ React Dev /
+                Dubai</button>
+            <button class="prompt-btn"
+                onclick="usePrompt('Analyze salary ranges for TypeScript developers in Singapore 2025')">→ Market
+                Analysis / SG</button>
+            <button class="prompt-btn" onclick="usePrompt('Find remote frontend jobs open to Indonesian candidates')">→
+                Remote Jobs</button>
+            <button class="prompt-btn"
+                onclick="usePrompt('What is the demand for Next.js developers in Southeast Asia?')">→ Next.js /
+                SEA</button>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-label">Active Tools</div>
+            <div class="tool-row" id="tool-search">
+                <div class="tool-indicator" id="ind-search"></div>
+                <div class="tool-label">search_web</div>
+            </div>
+            <div class="tool-row" id="tool-analyze">
+                <div class="tool-indicator" id="ind-analyze"></div>
+                <div class="tool-label">analyze_job_market</div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <div class="welcome" id="welcome">
+                    <div class="welcome-title">Job <span>Scout</span></div>
+                    <div class="welcome-sub">
+                        <div><span class="arrow">▸</span> Search live job listings from the web</div>
+                        <div><span class="arrow">▸</span> Analyze salary ranges &amp; market trends</div>
+                        <div><span class="arrow">▸</span> Ask anything about your job hunt</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-wrap">
+                <div class="input-box">
+                    <textarea id="input" placeholder="Ask about jobs, salaries, or market trends..." rows="1"
+                        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">↑</button>
+                </div>
+                <div class="input-hint">
+                    <span>Enter</span> to send &nbsp;·&nbsp;
+                    <span>Shift+Enter</span> new line &nbsp;·&nbsp;
+                    session: <span id="hint-session">—</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ── Session ──
+        let sessionId = null;
+        let sessionReady = false;
+
+        async function initSession() {
+            // disable input while fetching session
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('input').placeholder = 'Initializing session...';
+
+            const stored = localStorage.getItem('job_scout_session');
+            if (stored) {
+                sessionId = stored;
+                syncSessionDisplay();
+                sessionReady = true;
+                restoreInput();
+                return;
+            }
+
+            try {
+                const res = await fetch('/chat-sessions/', { method: 'POST' });
+                const data = await res.json();
+                sessionId = String(data.id);
+                localStorage.setItem('job_scout_session', sessionId);
+                syncSessionDisplay();
+                sessionReady = true;
+            } catch (err) {
+                console.error('Failed to create session:', err);
+                document.getElementById('input').placeholder = 'Session failed — refresh page';
+            } finally {
+                restoreInput();
+            }
+        }
+
+        function restoreInput() {
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('input').placeholder = 'Ask about jobs, salaries, or market trends...';
+        }
+
+        function syncSessionDisplay() {
+            const short = String(sessionId).slice(0, 14);
+            document.getElementById('session-display').textContent = short;
+            document.getElementById('hint-session').textContent = short;
+        }
+
+        async function newSession() {
+            localStorage.removeItem('job_scout_session');
+            sessionId = null;
+            sessionReady = false;
+            await initSession();
+            clearChat();
+        }
+
+        // ── Helpers ──
+        let isStreaming = false;
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        }
+
+        function usePrompt(text) {
+            const el = document.getElementById('input');
+            el.value = text;
+            autoResize(el);
+            el.focus();
+        }
+
+        function setStatus(thinking) {
+            document.getElementById('status-dot').className = 'status-dot' + (thinking ? ' thinking' : '');
+            document.getElementById('status-text').textContent = thinking ? 'Thinking...' : 'Ready';
+        }
+
+        function activateTool(name) {
+            deactivateTools();
+            if (name.includes('search')) document.getElementById('tool-search').classList.add('active');
+            else if (name.includes('analyz') || name.includes('market')) document.getElementById('tool-analyze').classList.add('active');
+        }
+
+        function deactivateTools() {
+            document.getElementById('tool-search').classList.remove('active');
+            document.getElementById('tool-analyze').classList.remove('active');
+        }
+
+        function hideWelcome() {
+            const w = document.getElementById('welcome');
+            if (w) w.remove();
+        }
+
+        function scrollBottom() {
+            const m = document.getElementById('messages');
+            m.scrollTop = m.scrollHeight;
+        }
+
+        function escHtml(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function formatText(text) {
+            return escHtml(text)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^## (.+)$/gm, '<div class="resp-h2">$1</div>')
+                .replace(/^### (.+)$/gm, '<div class="resp-h3">$1</div>')
+                .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // ── Rendering ──
+        function addUserMessage(text) {
+            hideWelcome();
+            const el = document.createElement('div');
+            el.className = 'msg user';
+            el.innerHTML = `<div class="av user-av">you</div><div class="bubble">${escHtml(text)}</div>`;
+            document.getElementById('messages').appendChild(el);
+            scrollBottom();
+        }
+
+        function addToolPill(toolName) {
+            const el = document.createElement('div');
+            el.className = 'msg tool-msg';
+            el.innerHTML = `<div class="tool-pill" id="pill-${toolName}"><div class="pill-dot"></div>⚙ ${toolName}</div>`;
+            document.getElementById('messages').appendChild(el);
+            scrollBottom();
+        }
+
+        function markToolDone(toolName) {
+            const pill = document.getElementById('pill-' + toolName);
+            if (pill) {
+                pill.classList.add('done');
+                pill.innerHTML = `<div class="pill-dot"></div>✓ ${toolName}`;
+            }
+            deactivateTools();
+        }
+
+        let currentBubble = null;
+        let bubbleText = '';
+
+        function createAssistantBubble() {
+            hideWelcome();
+            const bubbleId = 'bubble-' + Date.now();
+            const wrap = document.createElement('div');
+            wrap.className = 'msg assistant';
+            wrap.innerHTML = `<div class="av agent-av">JS</div><div class="bubble" id="${bubbleId}"><span class="cursor"></span></div>`;
+            document.getElementById('messages').appendChild(wrap);
+            scrollBottom();
+            return document.getElementById(bubbleId);
+        }
+
+        // ── Send ──
+        async function sendMessage() {
+            if (!sessionReady) {
+                await initSession();
+            }
+
+            const inputEl = document.getElementById('input');
+            const text = inputEl.value.trim();
+            if (!text || isStreaming || !sessionId) return;
+
+            isStreaming = true;
+            document.getElementById('send-btn').disabled = true;
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            setStatus(true);
+            addUserMessage(text);
+            currentBubble = null;
+            bubbleText = '';
+
+            try {
+                const res = await fetch('/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,        // ← sent to router
+                        job_description: text,        // ← sent to router
+                    }),
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    for (const line of chunk.split('\n')) {
+                        if (!line.startsWith('data: ')) continue;
+                        const raw = line.slice(6).trim();
+                        if (!raw) continue;
+
+                        try {
+                            const data = JSON.parse(raw);
+
+                            if (data.type === 'text') {
+                                if (!currentBubble) currentBubble = createAssistantBubble();
+                                bubbleText += data.content;
+                                currentBubble.innerHTML = formatText(bubbleText) + '<span class="cursor"></span>';
+                                scrollBottom();
+                            } else if (data.type === 'tool_call') {
+                                activateTool(data.content);
+                                addToolPill(data.content);
+                            } else if (data.type === 'tool_done') {
+                                markToolDone(data.content);
+                            }
+
+                        } catch (_) {
+                            if (!currentBubble) currentBubble = createAssistantBubble();
+                            bubbleText += raw;
+                            currentBubble.innerHTML = formatText(bubbleText) + '<span class="cursor"></span>';
+                            scrollBottom();
+                        }
+                    }
+                }
+
+                if (currentBubble) currentBubble.innerHTML = formatText(bubbleText);
+
+            } catch (err) {
+                if (!currentBubble) currentBubble = createAssistantBubble();
+                currentBubble.innerHTML = `<span style="color:var(--red)">✗ ${escHtml(err.message)}</span>`;
+            } finally {
+                isStreaming = false;
+                document.getElementById('send-btn').disabled = false;
+                deactivateTools();
+                setStatus(false);
+                scrollBottom();
+            }
+        }
+
+        function clearChat() {
+            currentBubble = null;
+            bubbleText = '';
+            deactivateTools();
+            setStatus(false);
+            document.getElementById('messages').innerHTML = `
+        <div class="welcome" id="welcome">
+          <div class="welcome-title">Job <span>Scout</span></div>
+          <div class="welcome-sub">
+            <div><span class="arrow">▸</span> Search live job listings from the web</div>
+            <div><span class="arrow">▸</span> Analyze salary ranges &amp; market trends</div>
+            <div><span class="arrow">▸</span> Ask anything about your job hunt</div>
+          </div>
+        </div>`;
+        }
+
+        // initSession
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initSession();
+            console.log('Session ready:', sessionId);
+        });
+    </script>
+</body>
+
+</html>
